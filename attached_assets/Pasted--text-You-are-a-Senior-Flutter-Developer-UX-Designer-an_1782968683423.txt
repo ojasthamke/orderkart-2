@@ -1,0 +1,533 @@
+```text
+You are a Senior Flutter Developer, UX Designer and Database Architect.
+Build a production-quality Flutter application named **OrderKart**
+The code must be modular, scalable, clean, well-commented and ready for GitHub.
+The application must work completely offline but should be designed so cloud sync can be enabled later without changing the app architecture.
+Use clean architecture.
+Use:
+* Flutter
+* Material 3
+* SQLite/Isar/Hive (offline database)
+* Repository Pattern
+* Provider/Riverpod
+* Responsive UI
+* Null Safety
+* Proper Folder Structure
+The application must have smooth animations and modern UI.
+Every button must work.
+No dummy buttons.
+Everything must be functional.
+---
+# APP PURPOSE
+FreshFlow is an Offline Order Management Application for vegetable, fruit, grocery and medicine delivery businesses.
+The app should manage
+* Areas
+* Streets
+* Customers
+* Orders
+* Payments
+* Inventory
+* Expenses
+* Analytics
+The app should be designed for future cloud synchronization.
+---
+# OFFLINE FIRST
+Everything should work without internet.
+Database stored locally.
+Future settings should include
+Enable Cloud Backup
+Sync to Server
+Restore Backup
+Google Drive Backup
+GitHub JSON Backup
+Import Database
+Export Database
+No feature should depend on internet.
+---
+# LOGIN
+No login required.
+Future login option should remain available.
+---
+# HOME STRUCTURE
+Dashboard
+↓
+Areas
+↓
+Streets
+↓
+Customers
+↓
+Customer Profile
+↓
+Create Order
+---
+# AREA SCREEN
+Features
+Add Area
+Edit Area
+Delete Area
+Search Area
+Sort Areas
+Area Statistics
+---
+# STREET SCREEN
+Inside selected Area
+Show Streets
+Add Street
+Edit Street
+Delete Street
+Search
+---
+# CUSTOMER SCREEN
+Inside Street
+Show Customer List
+Search Customer
+Add Customer
+Edit Customer
+Delete Customer
+---
+Each customer should have
+Name
+Phone Number
+Optional Phone Number 2
+House Number
+Address
+Notes
+Google Maps Location
+WhatsApp Number
+Customer ID
+Outstanding Balance
+Total Orders
+Total Paid
+Total Pending
+Customer Since
+Last Order Date
+QR Code
+---
+Buttons
+Create Order
+Notes
+Update Contact
+Call
+WhatsApp
+Google Maps
+Share Customer
+Delete
+Edit
+---
+Customer Profile should display
+All customer details
+Outstanding Amount
+Paid Amount
+Cash Payment
+Online Payment
+Customer Notes
+QR Code
+Order History
+Date wise separated
+Beautiful timeline
+---
+# ORDER CREATION
+Items should be selectable.
+Quantity input.
+Calculation must support
+0.25
+0.5
+0.75
+1.25
+2.5
+etc.
+Meaning
+0.5 = Half Kg
+0.25 = Quarter Kg
+Everything calculated perfectly.
+---
+# SMART ROUNDING
+If bill becomes
+58
+Automatically suggest
+60
+39
+Suggest
+40
+97
+Suggest
+100
+Allow user to disable smart rounding.
+---
+# DELIVERY CHARGES
+Default
+₹10
+Editable
+Can disable
+Can increase
+Remember last value.
+---
+# ORDER SUMMARY
+Subtotal
+Discount
+Smart Rounded Amount
+Delivery Charges
+Grand Total
+Remaining Amount
+Paid Amount
+---
+# AFTER ORDER CREATED
+Show buttons
+Share to Staff WhatsApp Group
+Share to Customer WhatsApp
+Copy Bill
+Share PDF
+Print
+Save
+Edit Order
+Delete Order
+Duplicate Order
+---
+# ORDER MANAGEMENT PANEL
+Separate section
+Show
+All Orders
+Pending
+Delivered
+Cancelled
+Today's Orders
+Yesterday
+This Week
+This Month
+---
+Each Order Card
+Customer Name
+Address
+Phone
+Amount
+Remaining
+Paid
+Cash
+Online
+Delivery Status
+Time
+Edit
+Delete
+Duplicate
+---
+Delivery Button
+One Tap
+Pending
+↓
+Delivered
+---
+Payment Button
+Mark Paid
+Partial Paid
+Remaining
+Cash
+Online
+UPI
+Card
+---
+When payment changes
+Automatically update
+Customer Outstanding Balance
+Customer Profile
+Analytics
+History
+---
+# ORDER HISTORY
+Customer Profile
+↓
+History
+Date Wise
+Each order editable
+Delete possible
+Duplicate possible
+Print possible
+Share possible
+---
+# ITEMS SECTION
+Categories
+Vegetables
+Fruits
+Groceries
+Medicines
+---
+Each Item
+Item Name
+Category
+Cost Price
+Selling Price
+Current Stock
+Minimum Stock
+Unit
+Kg
+Gram
+Dozen
+Liter
+Piece
+Packet
+Editable
+---
+Buttons
+Add
+Edit
+Delete
+Search
+Sort
+Stock Warning
+---
+# INVENTORY
+Stock decreases after order.
+Manual stock adjustment.
+History.
+---
+# EXPENSES
+Separate Module
+Expense Name
+Category
+Amount
+Date
+Notes
+Payment Method
+Cash
+Online
+Monthly Summary
+Edit
+Delete
+Search
+---
+# SEARCH
+Global Search
+Area
+Street
+Customer
+Order
+Item
+Expense
+Phone Number
+House Number
+---
+# SETTINGS
+Business Name
+Owner Name
+Phone
+WhatsApp
+Delivery Charge
+Smart Rounding
+Currency
+Backup
+Restore
+Export
+Import
+Theme
+Notification
+About
+Privacy
+Reset App
+---
+# QR CODE
+Business QR
+Editable
+Replaceable
+Resizable
+Responsive
+Visible on Bills
+Visible on Customer Profile
+---
+# ANALYTICS
+Dashboard Cards
+Today's Sales
+Monthly Sales
+Pending Payments
+Cash Received
+Online Received
+Expenses
+Profit
+Customers
+Orders
+Items
+Top Selling Items
+Low Stock
+Charts
+Weekly
+Monthly
+Yearly
+---
+# UI DESIGN
+Theme
+White
+Very clean
+Professional
+Modern
+Responsive
+Sunlight Friendly
+Material 3
+Rounded Cards
+Smooth Animations
+Minimal
+Proper spacing
+Readable Fonts
+---
+Colors
+White
+Blue
+Green
+Orange
+Red
+Gray
+No dark background.
+---
+Floating Action Button
+Use only where necessary.
+---
+Three Dot Menu
+Move secondary options inside
+Delete
+Duplicate
+Share
+Print
+Settings
+Export
+---
+Back Button
+Must work perfectly on every screen.
+No navigation bugs.
+---
+# PERFORMANCE
+App should support
+10000+ Customers
+50000+ Orders
+Without lag.
+---
+# DATABASE
+Design scalable database.
+Relationships
+Area
+↓
+Street
+↓
+Customer
+↓
+Orders
+↓
+Payments
+↓
+History
+---
+# CODE QUALITY
+Proper comments
+No duplicated code
+Reusable widgets
+MVC / Clean Architecture
+Separate folders
+Responsive layouts
+Error handling
+Validation
+No crashes
+---
+# FUTURE READY
+Architecture should support later
+Firebase
+Supabase
+REST API
+Node Backend
+Cloud Sync
+Multiple Devices
+Without rewriting code.
+---
+# OUTPUT
+Generate complete Flutter project.
+Generate all screens.
+Generate navigation.
+Generate database.
+Generate models.
+Generate providers.
+Generate repositories.
+Generate services.
+Generate reusable widgets.
+Generate responsive UI.
+Generate complete working source code.
+Do not leave placeholders.
+Do not skip any feature.
+Every button must work.
+Every calculation must be accurate.
+Everything should be production ready.
+---
+# 📋 Project Summary
+## Modules
+* Dashboard
+* Areas
+* Streets
+* Customers
+* Customer Profile
+* Orders
+* Order Management
+* Inventory
+* Items
+* Expenses
+* Analytics
+* Settings
+* Backup & Restore
+## Customer Features
+* Area → Street → Customer hierarchy
+* Full customer profile
+* Two phone numbers
+* Address & house number
+* Notes
+* Google Maps
+* WhatsApp
+* QR Code
+* Outstanding balance
+* Complete order history
+## Orders
+* Decimal quantity support (0.25, 0.5, etc.)
+* Smart bill rounding
+* Editable delivery charge
+* WhatsApp bill sharing
+* Staff sharing
+* PDF/Print
+* Edit/Delete/Duplicate
+* Payment tracking (Cash/Online)
+* Delivered status
+## Inventory
+* Vegetables
+* Fruits
+* Groceries
+* Medicines
+* Stock management
+* Units (kg, liter, dozen, piece, etc.)
+## Expenses
+* Expense tracking
+* Monthly summaries
+* Payment method
+* Notes
+## Analytics
+* Sales
+* Profit
+* Pending payments
+* Customer count
+* Charts
+* Low stock
+* Top-selling items
+## Technical Requirements
+* Flutter + Material 3
+* Offline-first (SQLite/Isar/Hive)
+* Clean Architecture
+* Riverpod/Provider
+* Responsive UI
+* Cloud-sync ready
+* Production-quality code
+* All buttons functional
+* Accurate calculations
+* GitHub-ready project structure
+### A few extra features I'd recommend adding
+* Customer photo support.
+* Route planning for deliveries.
+* Barcode/QR scanning for products.
+* Daily backup reminder.
+* Excel and PDF export.
+* Undo option after deleting records.
+* Bulk import/export via CSV.
+* Dark mode (optional).
+* Notifications for low stock and pending payments.
+* Multi-language support (English, Hindi, Marathi).
+```
