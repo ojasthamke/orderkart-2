@@ -1,0 +1,47 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Install pnpm
+      uses: pnpm/action-setup@v4
+      with:
+        version: 9
+        
+    - name: Use Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'pnpm'
+        
+    - name: Install dependencies
+      run: pnpm install --no-frozen-lockfile
+      
+    - name: Prebuild Android
+      run: pnpm exec expo prebuild --platform android --clean
+      working-directory: artifacts/freshflow
+      
+    - name: Build APK
+      run: ./gradlew assembleRelease
+      working-directory: artifacts/freshflow/android
+      
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: freshflow-apk
+        path: artifacts/freshflow/android/app/build/outputs/apk/release/app-release.apk
