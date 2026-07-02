@@ -29,3 +29,6 @@ jobs:
       
     - name: Build project
       run: pnpm run build
+      env:
+        PORT: 3000
+        BASE_PATH: "/"
