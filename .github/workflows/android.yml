@@ -37,11 +37,11 @@ jobs:
       working-directory: artifacts/freshflow
       
     - name: Build APK
-      run: ./gradlew assembleRelease
+      run: ./gradlew assembleDebug
       working-directory: artifacts/freshflow/android
       
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: freshflow-apk
-        path: artifacts/freshflow/android/app/build/outputs/apk/release/app-release.apk
+        path: artifacts/freshflow/android/app/build/outputs/apk/debug/app-debug.apk
