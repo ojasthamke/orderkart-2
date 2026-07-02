@@ -32,3 +32,4 @@ jobs:
       env:
         PORT: 3000
         BASE_PATH: "/"
+        EXPO_PUBLIC_DOMAIN: "localhost"
