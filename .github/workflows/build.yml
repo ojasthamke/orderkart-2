@@ -33,3 +33,15 @@ jobs:
         PORT: 3000
         BASE_PATH: "/"
         EXPO_PUBLIC_DOMAIN: "localhost"
+
+    - name: Upload Mockup Sandbox Build
+      uses: actions/upload-artifact@v4
+      with:
+        name: mockup-sandbox-build
+        path: artifacts/mockup-sandbox/dist/
+        
+    - name: Upload Freshflow Build
+      uses: actions/upload-artifact@v4
+      with:
+        name: freshflow-build
+        path: artifacts/freshflow/static-build/
