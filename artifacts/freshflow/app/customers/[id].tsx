@@ -49,6 +49,7 @@ export default function CustomerProfileScreen() {
   }
 
   function handleDelete() {
+    if (!customer) return;
     Alert.alert(
       'Delete Customer',
       `Delete "${customer.name}" and all their orders?`,

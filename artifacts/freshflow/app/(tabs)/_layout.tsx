@@ -17,7 +17,7 @@ function NativeTabLayout() {
         <Label>Dashboard</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="areas">
-        <Icon sf={{ default: "map.pin", selected: "map.pin.fill" }} />
+        <Icon sf={{ default: "location", selected: "location.fill" }} />
         <Label>Areas</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="orders">
@@ -96,7 +96,7 @@ function ClassicTabLayout() {
           title: "Areas",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="map.pin" tintColor={color} size={24} />
+              <SymbolView name="location" tintColor={color} size={24} />
             ) : (
               <Feather name="map-pin" size={22} color={color} />
             ),
