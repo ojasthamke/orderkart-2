@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const STORAGE_KEYS = {
+  LOCATIONS: '@freshflow/locations',
   AREAS: '@freshflow/areas',
   STREETS: '@freshflow/streets',
   CUSTOMERS: '@freshflow/customers',

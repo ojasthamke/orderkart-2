@@ -1,9 +1,9 @@
 import { Feather } from '@expo/vector-icons';
-import { router } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useColors } from '@/hooks/useColors';
-import { Customer, Expense, formatCurrency, formatDate, formatTime, Item, Order } from '@/types';
+import { Customer, Expense, formatCurrency, formatDate, formatTime, Item, LocationType, Order } from '@/types';
+import { useData } from '@/context/DataContext';
 
 // ─── CustomerCard ─────────────────────────────────────────────────────────────
 interface CustomerCardProps {
@@ -13,7 +13,10 @@ interface CustomerCardProps {
 
 export function CustomerCard({ customer, onPress }: CustomerCardProps) {
   const colors = useColors();
+  const { getLocationPath } = useData();
+  const locationPath = getLocationPath(customer.locationId);
   const hasOutstanding = customer.outstandingBalance > 0;
+  
   return (
     <TouchableOpacity
       style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -38,8 +41,8 @@ export function CustomerCard({ customer, onPress }: CustomerCardProps) {
         </View>
         <View style={styles.cardMeta}>
           <Feather name="home" size={12} color={colors.mutedForeground} />
-          <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-            {customer.houseNumber} · {customer.address || customer.streetName}
+          <Text style={[styles.metaText, { color: colors.mutedForeground }]} numberOfLines={1}>
+            {customer.houseNumber ? `${customer.houseNumber}, ` : ''}{locationPath || customer.address}
           </Text>
         </View>
         <View style={styles.cardMeta}>
@@ -243,19 +246,37 @@ export function ExpenseCard({ expense, onPress }: ExpenseCardProps) {
   );
 }
 
-// ─── AreaCard ─────────────────────────────────────────────────────────────────
-interface AreaCardProps {
+// ─── LocationCard ──────────────────────────────────────────────────────────────
+interface LocationCardProps {
   name: string;
-  streetCount: number;
+  type: LocationType;
+  childCount: number;
   customerCount: number;
   onPress: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  isSub?: boolean;
 }
 
-export function AreaCard({ name, streetCount, customerCount, onPress, onEdit, onDelete, isSub }: AreaCardProps) {
+export function LocationCard({ name, type, childCount, customerCount, onPress, onEdit, onDelete }: LocationCardProps) {
   const colors = useColors();
+
+  const getIconName = () => {
+    switch (type) {
+      case 'Area':
+        return 'map';
+      case 'Building':
+        return 'home';
+      case 'Landmark':
+        return 'flag';
+      case 'Road':
+      case 'Street':
+      case 'Galli':
+        return 'git-branch';
+      default:
+        return 'map-pin';
+    }
+  };
+
   return (
     <TouchableOpacity
       style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}
@@ -263,20 +284,20 @@ export function AreaCard({ name, streetCount, customerCount, onPress, onEdit, on
       activeOpacity={0.7}
     >
       <View style={[styles.areaIcon, { backgroundColor: colors.secondary }]}>
-        <Feather name="map-pin" size={20} color={colors.primary} />
+        <Feather name={getIconName()} size={20} color={colors.primary} />
       </View>
       <View style={styles.cardBody}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <View style={styles.cardRow}>
           <Text style={[styles.cardName, { color: colors.foreground }]}>{name}</Text>
-          {isSub && (
-            <View style={{ backgroundColor: colors.primary + '18', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-              <Text style={{ color: colors.primary, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>SUB</Text>
-            </View>
-          )}
+          <View style={{ backgroundColor: colors.border + '30', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+            <Text style={{ color: colors.mutedForeground, fontSize: 10, fontFamily: 'Inter_500Medium' }}>
+              {type}
+            </Text>
+          </View>
         </View>
         <View style={styles.cardMeta}>
           <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
-            {streetCount} streets · {customerCount} customers
+            {childCount} sub-locations · {customerCount} customers
           </Text>
         </View>
       </View>

@@ -8,62 +8,56 @@ import {
   Modal,
   Platform,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AreaCard } from '@/components/Cards';
-import { EmptyState, FAB, FormField, ModalHeader, PrimaryButton, SearchBar, SectionHeader } from '@/components/UI';
+import { LocationCard } from '@/components/Cards';
+import { EmptyState, FAB, FormField, ModalHeader, PrimaryButton, SearchBar } from '@/components/UI';
 import { useData } from '@/context/DataContext';
 import { useColors } from '@/hooks/useColors';
 
 export default function AreasScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { areas, streets, customers, addArea, editArea, deleteArea } = useData();
+  const { locations, customers, addLocation, editLocation, deleteLocation, getLocationsByParent, getCustomersAtLocation } = useData();
 
   const [search, setSearch] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [areaName, setAreaName] = useState('');
-  const [isSub, setIsSub] = useState(false);
+  const [locationName, setLocationName] = useState('');
+  const [notes, setNotes] = useState('');
 
-  const filtered = useMemo(
+  const rootLocations = useMemo(
     () =>
-      areas
-        .filter(a => a.name.toLowerCase().includes(search.toLowerCase()))
-        .sort((a, b) => {
-          if (a.isSub && !b.isSub) return -1;
-          if (!a.isSub && b.isSub) return 1;
-          return a.name.localeCompare(b.name);
-        }),
-    [areas, search],
+      locations
+        .filter(l => l.parentLocationId === null && l.name.toLowerCase().includes(search.toLowerCase()))
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [locations, search],
   );
 
   function openAdd() {
     setEditingId(null);
-    setAreaName('');
-    setIsSub(false);
+    setLocationName('');
+    setNotes('');
     setModalVisible(true);
   }
 
-  function openEdit(id: string, name: string) {
+  function openEdit(id: string, name: string, oldNotes?: string) {
     setEditingId(id);
-    setAreaName(name);
-    const area = areas.find(a => a.id === id);
-    setIsSub(area?.isSub || false);
+    setLocationName(name);
+    setNotes(oldNotes || '');
     setModalVisible(true);
   }
 
   function handleSave() {
-    if (!areaName.trim()) return;
+    if (!locationName.trim()) return;
     if (editingId) {
-      editArea(editingId, areaName.trim(), isSub);
+      editLocation(editingId, { name: locationName.trim(), notes: notes.trim() });
     } else {
-      addArea(areaName.trim(), isSub);
+      addLocation(locationName.trim(), 'Area', null, notes.trim());
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setModalVisible(false);
@@ -72,14 +66,14 @@ export default function AreasScreen() {
   function handleDelete(id: string, name: string) {
     Alert.alert(
       'Delete Area',
-      `Delete "${name}" and all its streets and customers?`,
+      `Delete "${name}"? Child locations and customers will be re-parented to the root.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
-            deleteArea(id);
+            deleteLocation(id);
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
           },
         },
@@ -97,34 +91,38 @@ export default function AreasScreen() {
           { paddingTop: topPt + 16, backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
-        <Text style={[styles.title, { color: colors.foreground }]}>Areas</Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>Locations</Text>
         <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-          {areas.length} areas · Manage delivery zones
+          {rootLocations.length} root areas · Manage delivery hierarchy
         </Text>
       </View>
 
       <SearchBar value={search} onChangeText={setSearch} placeholder="Search areas..." />
 
       <FlatList
-        data={filtered}
+        data={rootLocations}
         keyExtractor={item => item.id}
-        renderItem={({ item }) => (
-          <AreaCard
-            name={item.name}
-            isSub={item.isSub}
-            streetCount={streets.filter(s => s.areaId === item.id).length}
-            customerCount={customers.filter(c => c.areaId === item.id).length}
-            onPress={() => router.push({ pathname: '/areas/[id]', params: { id: item.id, name: item.name } })}
-            onEdit={() => openEdit(item.id, item.name)}
-            onDelete={() => handleDelete(item.id, item.name)}
-          />
-        )}
+        renderItem={({ item }) => {
+          const subLocations = getLocationsByParent(item.id);
+          const subCustomers = getCustomersAtLocation(item.id, true);
+          return (
+            <LocationCard
+              name={item.name}
+              type={item.type}
+              childCount={subLocations.length}
+              customerCount={subCustomers.length}
+              onPress={() => router.push({ pathname: '/areas/[id]', params: { id: item.id, name: item.name } })}
+              onEdit={() => openEdit(item.id, item.name, item.notes)}
+              onDelete={() => handleDelete(item.id, item.name)}
+            />
+          );
+        }}
         ListEmptyComponent={
           <EmptyState
-            icon="map-pin"
-            title={search ? 'No areas found' : 'No areas yet'}
-            subtitle={search ? 'Try a different search term' : 'Add your first delivery area to get started'}
-            action={!search ? { label: 'Add Area', onPress: openAdd } : undefined}
+            icon="map"
+            title={search ? 'No locations found' : 'No locations yet'}
+            subtitle={search ? 'Try a different search term' : 'Add your first root Area to start building the hierarchy'}
+            action={!search ? { label: 'Add Location', onPress: openAdd } : undefined}
           />
         }
         contentContainerStyle={[styles.list, { paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 80 }]}
@@ -143,23 +141,20 @@ export default function AreasScreen() {
           <KeyboardAwareScrollView contentContainerStyle={styles.modalBody} keyboardShouldPersistTaps="handled">
             <FormField
               label="Area Name"
-              value={areaName}
-              onChangeText={setAreaName}
-              placeholder="e.g. Sector 12, Downtown"
+              value={locationName}
+              onChangeText={setLocationName}
+              placeholder="e.g. Rajapeth, Sector 4"
               required
             />
-            <View style={styles.toggleRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Is Sub Area?</Text>
-                <Text style={[styles.toggleSub, { color: colors.mutedForeground }]}>Show at the top of the list</Text>
-              </View>
-              <Switch
-                value={isSub}
-                onValueChange={setIsSub}
-                trackColor={{ true: colors.primary }}
-              />
-            </View>
-            <PrimaryButton label={editingId ? 'Save Changes' : 'Add Area'} onPress={handleSave} disabled={!areaName.trim()} />
+            <FormField
+              label="Notes"
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Optional description"
+              multiline
+              numberOfLines={3}
+            />
+            <PrimaryButton label={editingId ? 'Save Changes' : 'Add Area'} onPress={handleSave} disabled={!locationName.trim()} />
           </KeyboardAwareScrollView>
         </View>
       </Modal>
@@ -175,7 +170,4 @@ const styles = StyleSheet.create({
   list: { paddingTop: 8, flexGrow: 1 },
   modal: { flex: 1 },
   modalBody: { padding: 16, gap: 16 },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, gap: 12, marginBottom: 12 },
-  toggleLabel: { fontSize: 15, fontFamily: 'Inter_500Medium' },
-  toggleSub: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
 });

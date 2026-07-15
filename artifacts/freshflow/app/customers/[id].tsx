@@ -23,7 +23,7 @@ export default function CustomerProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { customers, deleteCustomer, getOrdersForCustomer } = useData();
+  const { customers, deleteCustomer, getOrdersForCustomer, getLocationPath } = useData();
 
   const customer = customers.find(c => c.id === id);
   const orders = useMemo(() => (id ? getOrdersForCustomer(id) : []), [id, getOrdersForCustomer]);
@@ -107,10 +107,10 @@ export default function CustomerProfileScreen() {
         </View>
         <Text style={[styles.name, { color: colors.foreground }]}>{customer.name}</Text>
         <Text style={[styles.address, { color: colors.mutedForeground }]}>
-          {customer.houseNumber} · {customer.address || customer.streetName}
+          {customer.houseNumber ? `${customer.houseNumber}, ` : ''}{customer.address}
         </Text>
         <Text style={[styles.location, { color: colors.mutedForeground }]}>
-          {customer.streetName} · {customer.areaName}
+          {getLocationPath(customer.locationId)}
         </Text>
         {customer.notes ? (
           <Text style={[styles.notes, { color: colors.mutedForeground }]}>{customer.notes}</Text>

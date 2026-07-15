@@ -34,7 +34,7 @@ export default function CreateOrderScreen() {
   const { customerId } = useLocalSearchParams<{ customerId?: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { customers, items, addOrder, settings } = useData();
+  const { customers, items, addOrder, settings, getLocationPath } = useData();
 
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     customerId ? (customers.find(c => c.id === customerId) ?? null) : null,
@@ -122,7 +122,7 @@ export default function CreateOrderScreen() {
       customerId: selectedCustomer.id,
       customerName: selectedCustomer.name,
       customerPhone: selectedCustomer.phone,
-      customerAddress: `${selectedCustomer.houseNumber} ${selectedCustomer.address || selectedCustomer.streetName}`,
+      customerAddress: `${selectedCustomer.houseNumber ? `${selectedCustomer.houseNumber}, ` : ''}${selectedCustomer.address} (${getLocationPath(selectedCustomer.locationId)})`,
       items: orderItems,
       subtotal,
       discount: discountAmt,

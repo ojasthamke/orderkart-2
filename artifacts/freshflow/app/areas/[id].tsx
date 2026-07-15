@@ -8,82 +8,153 @@ import {
   Modal,
   Platform,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { EmptyState, FAB, FormField, ModalHeader, PrimaryButton, SearchBar } from '@/components/UI';
+import { LocationCard, CustomerCard } from '@/components/Cards';
+import { EmptyState, FormField, ModalHeader, PrimaryButton, SearchBar, SectionHeader } from '@/components/UI';
 import { useData } from '@/context/DataContext';
 import { useColors } from '@/hooks/useColors';
-import { Street } from '@/types';
+import { Location, LocationType } from '@/types';
 
-export default function AreaDetailScreen() {
-  const { id, name } = useLocalSearchParams<{ id: string; name: string }>();
+const LOCATION_TYPES: LocationType[] = ['Road', 'Street', 'Galli', 'Society', 'Building', 'Landmark', 'Other'];
+
+export default function LocationDetailScreen() {
+  const { id } = useLocalSearchParams<{ id: string }>();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { streets, customers, addStreet, editStreet, deleteStreet, areas } = useData();
+  
+  const {
+    locations,
+    customers,
+    addLocation,
+    editLocation,
+    deleteLocation,
+    getBreadcrumbs,
+    getLocationsByParent,
+    getCustomersAtLocation,
+  } = useData();
 
   const [search, setSearch] = useState('');
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [streetName, setStreetName] = useState('');
-  const [isSub, setIsSub] = useState(false);
+  
+  // Form State
+  const [locationName, setLocationName] = useState('');
+  const [locationType, setLocationType] = useState<LocationType>('Road');
+  const [notes, setNotes] = useState('');
 
-  const area = areas.find(a => a.id === id);
-  const areaName = area?.name || name || 'Area';
+  const currentLocation = useMemo(() => locations.find(l => l.id === id), [locations, id]);
+  const breadcrumbs = useMemo(() => getBreadcrumbs(id), [getBreadcrumbs, id]);
+  
+  const subLocations = useMemo(() => {
+    return getLocationsByParent(id).filter(l => l.name.toLowerCase().includes(search.toLowerCase()));
+  }, [getLocationsByParent, id, search]);
 
-  const areaStreets = useMemo(
-    () =>
-      streets
-        .filter(s => s.areaId === id && s.name.toLowerCase().includes(search.toLowerCase()))
-        .sort((a, b) => {
-          if (a.isSub && !b.isSub) return -1;
-          if (!a.isSub && b.isSub) return 1;
-          return a.name.localeCompare(b.name);
-        }),
-    [streets, id, search],
-  );
+  const localCustomers = useMemo(() => {
+    // Get non-recursive customers directly assigned to this location
+    return getCustomersAtLocation(id!, false).filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+  }, [getCustomersAtLocation, id, search]);
 
-  function openAdd() {
+  function openAddChild() {
     setEditingId(null);
-    setStreetName('');
-    setIsSub(false);
+    setLocationName('');
+    setLocationType('Road');
+    setNotes('');
     setModalVisible(true);
   }
 
-  function openEdit(street: Street) {
-    setEditingId(street.id);
-    setStreetName(street.name);
-    setIsSub(street.isSub || false);
+  function openEdit(loc: Location) {
+    setEditingId(loc.id);
+    setLocationName(loc.name);
+    setLocationType(loc.type);
+    setNotes(loc.notes || '');
     setModalVisible(true);
   }
 
   function handleSave() {
-    if (!streetName.trim()) return;
+    if (!locationName.trim()) return;
     if (editingId) {
-      editStreet(editingId, streetName.trim(), isSub);
+      editLocation(editingId, { name: locationName.trim(), type: locationType, notes: notes.trim() });
     } else {
-      addStreet(id!, areaName, streetName.trim(), isSub);
+      addLocation(locationName.trim(), locationType, id!, notes.trim());
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setModalVisible(false);
   }
 
-  function handleDelete(street: Street) {
-    Alert.alert('Delete Street', `Delete "${street.name}" and all its customers?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => deleteStreet(street.id),
-      },
-    ]);
+  function handleDelete(loc: Location) {
+    Alert.alert(
+      'Delete Location',
+      `Delete "${loc.name}"? Sub-locations and customers will be re-parented to "${currentLocation?.name || 'parent'}".`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            deleteLocation(loc.id);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+          },
+        },
+      ],
+    );
   }
 
+  function openAddCustomer() {
+    router.push({ pathname: '/customers/create', params: { locationId: id } });
+  }
+
+  const listData = useMemo(() => {
+    const list: any[] = [];
+    
+    // Add Sub-Locations Section
+    list.push({
+      kind: 'header',
+      title: 'Sub-Locations',
+      count: subLocations.length,
+      onAdd: openAddChild,
+    });
+    
+    if (subLocations.length === 0) {
+      list.push({ kind: 'empty-locations' });
+    } else {
+      subLocations.forEach(loc => {
+        list.push({ kind: 'location', data: loc });
+      });
+    }
+    
+    // Add Customers Section
+    list.push({
+      kind: 'header',
+      title: 'Customers',
+      count: localCustomers.length,
+      onAdd: openAddCustomer,
+    });
+    
+    if (localCustomers.length === 0) {
+      list.push({ kind: 'empty-customers' });
+    } else {
+      localCustomers.forEach(cust => {
+        list.push({ kind: 'customer', data: cust });
+      });
+    }
+    
+    return list;
+  }, [subLocations, localCustomers]);
+
   const topPt = Platform.OS === 'web' ? Math.max(insets.top, 67) : insets.top;
+
+  if (!currentLocation) {
+    return (
+      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: topPt + 20 }]}>
+        <EmptyState icon="alert-triangle" title="Location Not Found" subtitle="This location does not exist or has been removed." />
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -92,89 +163,147 @@ export default function AreaDetailScreen() {
           <Feather name="arrow-left" size={22} color={colors.foreground} />
         </TouchableOpacity>
         <View style={styles.headerTitle}>
-          <Text style={[styles.title, { color: colors.foreground }]}>{areaName}</Text>
+          <Text style={[styles.title, { color: colors.foreground }]}>{currentLocation.name}</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            {areaStreets.length} streets · {customers.filter(c => c.areaId === id).length} customers
+            {currentLocation.type} details
           </Text>
         </View>
       </View>
 
-      <SearchBar value={search} onChangeText={setSearch} placeholder="Search streets..." />
+      {/* Clickable Breadcrumbs Path */}
+      <View style={[styles.breadcrumbRow, { borderBottomColor: colors.border }]}>
+        {breadcrumbs.map((crumb, idx) => (
+          <React.Fragment key={crumb.id}>
+            {idx > 0 && <Feather name="chevron-right" size={12} color={colors.mutedForeground} style={styles.chevron} />}
+            <TouchableOpacity
+              onPress={() => router.replace({ pathname: '/areas/[id]', params: { id: crumb.id } })}
+              disabled={crumb.id === id}
+            >
+              <Text
+                style={[
+                  styles.breadcrumbText,
+                  { color: crumb.id === id ? colors.foreground : colors.primary },
+                  crumb.id === id && { fontFamily: 'Inter_600SemiBold' },
+                ]}
+              >
+                {crumb.name}
+              </Text>
+            </TouchableOpacity>
+          </React.Fragment>
+        ))}
+      </View>
+
+      <SearchBar value={search} onChangeText={setSearch} placeholder="Search within this location..." />
 
       <FlatList
-        data={areaStreets}
-        keyExtractor={s => s.id}
+        data={listData}
+        keyExtractor={(item, index) => `${item.kind}-${item.data?.id || index}`}
         renderItem={({ item }) => {
-          const custCount = customers.filter(c => c.streetId === item.id).length;
-          return (
-            <TouchableOpacity
-              style={[styles.streetCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-              onPress={() =>
-                router.push({ pathname: '/streets/[id]', params: { id: item.id, name: item.name } })
-              }
-              activeOpacity={0.7}
-            >
-              <View style={[styles.streetIcon, { backgroundColor: colors.accent }]}>
-                <Feather name="git-branch" size={18} color={colors.accentForeground} />
-              </View>
-              <View style={styles.streetBody}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={[styles.streetName, { color: colors.foreground }]}>{item.name}</Text>
-                  {item.isSub && (
-                    <View style={{ backgroundColor: colors.primary + '18', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                      <Text style={{ color: colors.primary, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>SUB</Text>
-                    </View>
-                  )}
-                </View>
-                <Text style={[styles.streetMeta, { color: colors.mutedForeground }]}>
-                  {custCount} customer{custCount !== 1 ? 's' : ''}
+          if (item.kind === 'header') {
+            return (
+              <SectionHeader
+                title={item.title}
+                count={item.count}
+                action={{ label: 'Add', onPress: item.onAdd, icon: 'plus' }}
+              />
+            );
+          }
+          if (item.kind === 'empty-locations') {
+            return (
+              <View style={styles.inlineEmpty}>
+                <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
+                  No sub-locations here yet.
                 </Text>
               </View>
-              <TouchableOpacity onPress={() => openEdit(item)} style={styles.actionBtn}>
-                <Feather name="edit-2" size={16} color={colors.mutedForeground} />
-              </TouchableOpacity>
-              <TouchableOpacity onPress={() => handleDelete(item)} style={styles.actionBtn}>
-                <Feather name="trash-2" size={16} color={colors.destructive} />
-              </TouchableOpacity>
-              <Feather name="chevron-right" size={18} color={colors.border} />
-            </TouchableOpacity>
-          );
+            );
+          }
+          if (item.kind === 'empty-customers') {
+            return (
+              <View style={styles.inlineEmpty}>
+                <Text style={{ color: colors.mutedForeground, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
+                  No customers registered directly at this location.
+                </Text>
+              </View>
+            );
+          }
+          if (item.kind === 'location') {
+            const children = getLocationsByParent(item.data.id);
+            const subCusts = getCustomersAtLocation(item.data.id, true);
+            return (
+              <LocationCard
+                name={item.data.name}
+                type={item.data.type}
+                childCount={children.length}
+                customerCount={subCusts.length}
+                onPress={() => router.push({ pathname: '/areas/[id]', params: { id: item.data.id } })}
+                onEdit={() => openEdit(item.data)}
+                onDelete={() => handleDelete(item.data)}
+              />
+            );
+          }
+          if (item.kind === 'customer') {
+            return (
+              <CustomerCard
+                customer={item.data}
+                onPress={() => router.push({ pathname: '/customers/[id]', params: { id: item.data.id } })}
+              />
+            );
+          }
+          return null;
         }}
-        ListEmptyComponent={
-          <EmptyState
-            icon="git-branch"
-            title={search ? 'No streets found' : 'No streets yet'}
-            subtitle={`Add streets in ${areaName} to organise customers`}
-            action={!search ? { label: 'Add Street', onPress: openAdd } : undefined}
-          />
-        }
-        contentContainerStyle={[styles.list, { paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 80 }]}
+        contentContainerStyle={[styles.list, { paddingBottom: Platform.OS === 'web' ? 34 : insets.bottom + 40 }]}
         showsVerticalScrollIndicator={false}
       />
-
-      <FAB onPress={openAdd} />
 
       <Modal visible={modalVisible} animationType="slide" presentationStyle="formSheet" onRequestClose={() => setModalVisible(false)}>
         <View style={[styles.modal, { backgroundColor: colors.background }]}>
           <ModalHeader
-            title={editingId ? 'Edit Street' : 'New Street'}
+            title={editingId ? 'Edit Sub-Location' : 'New Sub-Location'}
             onClose={() => setModalVisible(false)}
             rightAction={{ label: 'Save', onPress: handleSave }}
           />
           <KeyboardAwareScrollView contentContainerStyle={styles.modalBody} keyboardShouldPersistTaps="handled">
-            <FormField label="Street Name" value={streetName} onChangeText={setStreetName} placeholder="e.g. MG Road, Lane 4" required />
-            <View style={styles.toggleRow}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Is Sub Street?</Text>
-                <Text style={[styles.toggleSub, { color: colors.mutedForeground }]}>Show at the top of the list</Text>
-              </View>
-              <Switch
-                value={isSub}
-                onValueChange={setIsSub}
-                trackColor={{ true: colors.primary }}
-              />
+            <FormField
+              label="Location Name"
+              value={locationName}
+              onChangeText={setLocationName}
+              placeholder="e.g. Main Road, Galli A, Block 3"
+              required
+            />
+            
+            <Text style={[styles.formLabel, { color: colors.mutedForeground }]}>Location Type *</Text>
+            <View style={styles.chipsContainer}>
+              {LOCATION_TYPES.map(t => {
+                const selected = locationType === t;
+                return (
+                  <TouchableOpacity
+                    key={t}
+                    onPress={() => setLocationType(t)}
+                    style={[
+                      styles.chip,
+                      {
+                        backgroundColor: selected ? colors.primary : colors.muted,
+                        borderColor: selected ? colors.primary : colors.border,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.chipText, { color: selected ? '#fff' : colors.foreground }]}>
+                      {t}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
-            <PrimaryButton label={editingId ? 'Save Changes' : 'Add Street'} onPress={handleSave} disabled={!streetName.trim()} />
+
+            <FormField
+              label="Notes"
+              value={notes}
+              onChangeText={setNotes}
+              placeholder="Optional landmark or navigation notes"
+              multiline
+              numberOfLines={3}
+            />
+            <PrimaryButton label={editingId ? 'Save Changes' : 'Add Sub-Location'} onPress={handleSave} disabled={!locationName.trim()} />
           </KeyboardAwareScrollView>
         </View>
       </Modal>
@@ -192,19 +321,20 @@ const styles = StyleSheet.create({
   headerTitle: { flex: 1 },
   title: { fontSize: 22, fontFamily: 'Inter_700Bold' },
   subtitle: { fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2 },
-  list: { paddingTop: 8, flexGrow: 1 },
-  streetCard: {
-    flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14,
-    marginHorizontal: 16, marginBottom: 10, borderRadius: 14, borderWidth: 1,
+  breadcrumbRow: {
+    flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center',
+    paddingHorizontal: 16, paddingVertical: 12, gap: 4, borderBottomWidth: 1,
   },
-  streetIcon: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  streetBody: { flex: 1 },
-  streetName: { fontSize: 16, fontFamily: 'Inter_600SemiBold' },
-  streetMeta: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
-  actionBtn: { padding: 6 },
+  breadcrumbText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
+  chevron: { marginHorizontal: 2 },
+  list: { paddingTop: 8, flexGrow: 1 },
+  inlineEmpty: { paddingHorizontal: 24, paddingVertical: 16, alignItems: 'center' },
   modal: { flex: 1 },
   modalBody: { padding: 16, gap: 16 },
-  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, gap: 12, marginBottom: 12 },
-  toggleLabel: { fontSize: 15, fontFamily: 'Inter_500Medium' },
-  toggleSub: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
+  formLabel: { fontSize: 13, fontFamily: 'Inter_500Medium', marginBottom: 2 },
+  chipsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 12 },
+  chip: {
+    paddingHorizontal: 12, paddingVertical: 8, borderRadius: 20, borderWidth: 1,
+  },
+  chipText: { fontSize: 13, fontFamily: 'Inter_500Medium' },
 });

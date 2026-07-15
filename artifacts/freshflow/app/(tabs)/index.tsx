@@ -154,8 +154,8 @@ export default function DashboardScreen() {
           style={[styles.quickAction, { backgroundColor: colors.card, borderColor: colors.border }]}
           onPress={() => router.push('/(tabs)/areas')}
         >
-          <Feather name="map-pin" size={22} color={colors.primary} />
-          <Text style={[styles.quickActionText, { color: colors.foreground }]}>Areas</Text>
+          <Feather name="map" size={22} color={colors.primary} />
+          <Text style={[styles.quickActionText, { color: colors.foreground }]}>Locations</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.quickAction, { backgroundColor: colors.card, borderColor: colors.border }]}

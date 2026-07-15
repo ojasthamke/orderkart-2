@@ -2,37 +2,33 @@ import React, { createContext, useCallback, useContext, useEffect, useState } fr
 import { loadData, saveData, STORAGE_KEYS } from '@/storage';
 import {
   AppSettings,
-  Area,
   Customer,
   DEFAULT_SETTINGS,
   Expense,
   generateId,
   Item,
+  Location,
+  LocationType,
   Order,
   PaymentMethod,
-  Street,
 } from '@/types';
 
 interface DataContextType {
-  // Areas
-  areas: Area[];
-  addArea: (name: string, isSub?: boolean) => void;
-  editArea: (id: string, name: string, isSub?: boolean) => void;
-  deleteArea: (id: string) => void;
-
-  // Streets
-  streets: Street[];
-  addStreet: (areaId: string, areaName: string, name: string, isSub?: boolean) => void;
-  editStreet: (id: string, name: string, isSub?: boolean) => void;
-  deleteStreet: (id: string) => void;
-  getStreetsForArea: (areaId: string) => Street[];
+  // Locations
+  locations: Location[];
+  addLocation: (name: string, type: LocationType, parentLocationId: string | null, notes?: string) => void;
+  editLocation: (id: string, updates: Partial<Location>) => void;
+  deleteLocation: (id: string) => void;
+  getBreadcrumbs: (locationId: string | null) => Location[];
+  getLocationPath: (locationId: string | null) => string;
+  getLocationsByParent: (parentLocationId: string | null) => Location[];
+  getCustomersAtLocation: (locationId: string, recursive?: boolean) => Customer[];
 
   // Customers
   customers: Customer[];
   addCustomer: (data: Omit<Customer, 'id' | 'outstandingBalance' | 'totalOrders' | 'totalPaid' | 'customerSince' | 'lastOrderDate'>) => void;
   editCustomer: (id: string, data: Partial<Customer>) => void;
   deleteCustomer: (id: string) => void;
-  getCustomersForStreet: (streetId: string) => Customer[];
   getCustomerById: (id: string) => Customer | undefined;
 
   // Orders
@@ -69,8 +65,7 @@ interface DataContextType {
 const DataContext = createContext<DataContextType | null>(null);
 
 export function DataProvider({ children }: { children: React.ReactNode }) {
-  const [areas, setAreas] = useState<Area[]>([]);
-  const [streets, setStreets] = useState<Street[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
   const [items, setItems] = useState<Item[]>([]);
@@ -80,18 +75,72 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     async function load() {
-      const [a, s, c, o, it, e, st] = await Promise.all([
-        loadData<Area[]>(STORAGE_KEYS.AREAS, []),
-        loadData<Street[]>(STORAGE_KEYS.STREETS, []),
-        loadData<Customer[]>(STORAGE_KEYS.CUSTOMERS, []),
+      let locs = await loadData<Location[]>(STORAGE_KEYS.LOCATIONS, []);
+      let custs = await loadData<Customer[]>(STORAGE_KEYS.CUSTOMERS, []);
+
+      // Backward compatibility data migration
+      if (locs.length === 0) {
+        const legacyAreas = await loadData<any[]>(STORAGE_KEYS.AREAS, []);
+        const legacyStreets = await loadData<any[]>(STORAGE_KEYS.STREETS, []);
+        if (legacyAreas.length > 0 || legacyStreets.length > 0) {
+          console.log('Migrating legacy Areas & Streets to Locations...');
+          const migratedLocs: Location[] = [];
+
+          // Migrate Areas
+          legacyAreas.forEach((area, index) => {
+            migratedLocs.push({
+              id: area.id,
+              parentLocationId: null,
+              name: area.name,
+              type: 'Area',
+              sortOrder: index,
+              createdAt: area.createdAt || new Date().toISOString(),
+            });
+          });
+
+          // Migrate Streets
+          legacyStreets.forEach((street, index) => {
+            migratedLocs.push({
+              id: street.id,
+              parentLocationId: street.areaId,
+              name: street.name,
+              type: 'Road',
+              sortOrder: index,
+              createdAt: street.createdAt || new Date().toISOString(),
+            });
+          });
+
+          locs = migratedLocs;
+          await saveData(STORAGE_KEYS.LOCATIONS, locs);
+
+          // Update Customer references
+          custs = custs.map(c => {
+            const legacyCust = c as any;
+            const lid = legacyCust.streetId || legacyCust.areaId || '';
+            const newCust = { ...c, locationId: lid };
+            delete (newCust as any).streetId;
+            delete (newCust as any).streetName;
+            delete (newCust as any).areaId;
+            delete (newCust as any).areaName;
+            return newCust;
+          });
+          await saveData(STORAGE_KEYS.CUSTOMERS, custs);
+
+          // Clear legacy keys
+          await saveData(STORAGE_KEYS.AREAS, []);
+          await saveData(STORAGE_KEYS.STREETS, []);
+        }
+      }
+
+      const [o, it, e, st] = await Promise.all([
         loadData<Order[]>(STORAGE_KEYS.ORDERS, []),
         loadData<Item[]>(STORAGE_KEYS.ITEMS, []),
         loadData<Expense[]>(STORAGE_KEYS.EXPENSES, []),
         loadData<AppSettings>(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS),
       ]);
-      setAreas(a);
-      setStreets(s);
-      setCustomers(c);
+
+      setLocations(locs);
+      setCustomers(custs);
       setOrders(o);
       setItems(it);
       setExpenses(e);
@@ -101,91 +150,113 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     load();
   }, []);
 
-  // Areas
-  const addArea = useCallback((name: string, isSub = false) => {
-    const area: Area = { id: generateId(), name, createdAt: new Date().toISOString(), isSub };
-    setAreas(prev => {
-      const next = [...prev, area];
-      saveData(STORAGE_KEYS.AREAS, next);
+  // Locations CRUD
+  const addLocation = useCallback((name: string, type: LocationType, parentLocationId: string | null, notes?: string) => {
+    setLocations(prev => {
+      const siblings = prev.filter(l => l.parentLocationId === parentLocationId);
+      const nextSortOrder = siblings.length > 0 ? Math.max(...siblings.map(s => s.sortOrder)) + 1 : 0;
+      const location: Location = {
+        id: generateId(),
+        parentLocationId,
+        name,
+        type,
+        sortOrder: nextSortOrder,
+        notes,
+        createdAt: new Date().toISOString(),
+      };
+      const next = [...prev, location];
+      saveData(STORAGE_KEYS.LOCATIONS, next);
       return next;
     });
   }, []);
 
-  const editArea = useCallback((id: string, name: string, isSub?: boolean) => {
-    setAreas(prev => {
-      const next = prev.map(a => (a.id === id ? { ...a, name, isSub: isSub !== undefined ? isSub : a.isSub } : a));
-      saveData(STORAGE_KEYS.AREAS, next);
+  const editLocation = useCallback((id: string, updates: Partial<Location>) => {
+    setLocations(prev => {
+      const next = prev.map(l => (l.id === id ? { ...l, ...updates } : l));
+      saveData(STORAGE_KEYS.LOCATIONS, next);
       return next;
     });
-    setStreets(prev => {
-      const next = prev.map(s => (s.areaId === id ? { ...s, areaName: name } : s));
-      saveData(STORAGE_KEYS.STREETS, next);
+  }, []);
+
+  const deleteLocation = useCallback((id: string) => {
+    let newParentId: string | null = null;
+    setLocations(prev => {
+      const deletedLoc = prev.find(l => l.id === id);
+      newParentId = deletedLoc ? deletedLoc.parentLocationId : null;
+      const next = prev
+        .filter(l => l.id !== id)
+        .map(l => (l.parentLocationId === id ? { ...l, parentLocationId: newParentId } : l));
+      saveData(STORAGE_KEYS.LOCATIONS, next);
       return next;
     });
+
     setCustomers(prev => {
-      const next = prev.map(c => (c.areaId === id ? { ...c, areaName: name } : c));
+      const next = prev.map(c => (c.locationId === id ? { ...c, locationId: newParentId || '' } : c));
       saveData(STORAGE_KEYS.CUSTOMERS, next);
       return next;
     });
   }, []);
 
-  const deleteArea = useCallback((id: string) => {
-    setAreas(prev => {
-      const next = prev.filter(a => a.id !== id);
-      saveData(STORAGE_KEYS.AREAS, next);
-      return next;
-    });
-    setStreets(prev => {
-      const next = prev.filter(s => s.areaId !== id);
-      saveData(STORAGE_KEYS.STREETS, next);
-      return next;
-    });
-    setCustomers(prev => {
-      const next = prev.filter(c => c.areaId !== id);
-      saveData(STORAGE_KEYS.CUSTOMERS, next);
-      return next;
-    });
-  }, []);
+  const getBreadcrumbs = useCallback(
+    (locationId: string | null): Location[] => {
+      if (!locationId) return [];
+      const crumbs: Location[] = [];
+      let currentId: string | null = locationId;
+      const maxDepth = 20;
+      let count = 0;
+      while (currentId && count < maxDepth) {
+        const loc = locations.find(l => l.id === currentId);
+        if (!loc) break;
+        crumbs.unshift(loc);
+        currentId = loc.parentLocationId;
+        count++;
+      }
+      return crumbs;
+    },
+    [locations],
+  );
 
-  // Streets
-  const addStreet = useCallback((areaId: string, areaName: string, name: string, isSub = false) => {
-    const street: Street = { id: generateId(), areaId, areaName, name, createdAt: new Date().toISOString(), isSub };
-    setStreets(prev => {
-      const next = [...prev, street];
-      saveData(STORAGE_KEYS.STREETS, next);
-      return next;
-    });
-  }, []);
+  const getLocationPath = useCallback(
+    (locationId: string | null): string => {
+      const crumbs = getBreadcrumbs(locationId);
+      return crumbs.map(c => c.name).join(' > ');
+    },
+    [getBreadcrumbs],
+  );
 
-  const editStreet = useCallback((id: string, name: string, isSub?: boolean) => {
-    setStreets(prev => {
-      const next = prev.map(s => (s.id === id ? { ...s, name, isSub: isSub !== undefined ? isSub : s.isSub } : s));
-      saveData(STORAGE_KEYS.STREETS, next);
-      return next;
-    });
-    setCustomers(prev => {
-      const next = prev.map(c => (c.streetId === id ? { ...c, streetName: name } : c));
-      saveData(STORAGE_KEYS.CUSTOMERS, next);
-      return next;
-    });
-  }, []);
+  const getLocationsByParent = useCallback(
+    (parentLocationId: string | null) => {
+      return locations.filter(l => l.parentLocationId === parentLocationId);
+    },
+    [locations],
+  );
 
-  const deleteStreet = useCallback((id: string) => {
-    setStreets(prev => {
-      const next = prev.filter(s => s.id !== id);
-      saveData(STORAGE_KEYS.STREETS, next);
-      return next;
-    });
-    setCustomers(prev => {
-      const next = prev.filter(c => c.streetId !== id);
-      saveData(STORAGE_KEYS.CUSTOMERS, next);
-      return next;
-    });
-  }, []);
-
-  const getStreetsForArea = useCallback(
-    (areaId: string) => streets.filter(s => s.areaId === areaId),
-    [streets],
+  const getCustomersAtLocation = useCallback(
+    (locationId: string, recursive = true): Customer[] => {
+      if (!recursive) {
+        return customers.filter(c => c.locationId === locationId);
+      }
+      const childIds = new Set<string>([locationId]);
+      let queue = [locationId];
+      const maxDepth = 20;
+      let count = 0;
+      while (queue.length > 0 && count < maxDepth) {
+        const nextQueue: string[] = [];
+        for (const q of queue) {
+          const children = locations.filter(l => l.parentLocationId === q);
+          for (const child of children) {
+            if (!childIds.has(child.id)) {
+              childIds.add(child.id);
+              nextQueue.push(child.id);
+            }
+          }
+        }
+        queue = nextQueue;
+        count++;
+      }
+      return customers.filter(c => childIds.has(c.locationId));
+    },
+    [locations, customers],
   );
 
   // Customers
@@ -230,11 +301,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const getCustomersForStreet = useCallback(
-    (streetId: string) => customers.filter(c => c.streetId === streetId),
-    [customers],
-  );
-
   const getCustomerById = useCallback(
     (id: string) => customers.find(c => c.id === id),
     [customers],
@@ -253,7 +319,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         saveData(STORAGE_KEYS.ORDERS, next);
         return next;
       });
-      // Update customer stats
       setCustomers(prev => {
         const next = prev.map(c => {
           if (c.id !== orderData.customerId) return c;
@@ -268,7 +333,6 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         saveData(STORAGE_KEYS.CUSTOMERS, next);
         return next;
       });
-      // Decrease stock
       if (orderData.items.length > 0) {
         setItems(prev => {
           const next = prev.map(item => {
@@ -437,15 +501,38 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   return (
     <DataContext.Provider
       value={{
-        areas, addArea, editArea, deleteArea,
-        streets, addStreet, editStreet, deleteStreet, getStreetsForArea,
-        customers, addCustomer, editCustomer, deleteCustomer,
-        getCustomersForStreet, getCustomerById,
-        orders, addOrder, editOrder, deleteOrder,
-        updateDeliveryStatus, addPayment, getOrdersForCustomer,
-        items, addItem, editItem, deleteItem, adjustStock, getLowStockItems,
-        expenses, addExpense, editExpense, deleteExpense,
-        settings, updateSettings,
+        locations,
+        addLocation,
+        editLocation,
+        deleteLocation,
+        getBreadcrumbs,
+        getLocationPath,
+        getLocationsByParent,
+        getCustomersAtLocation,
+        customers,
+        addCustomer,
+        editCustomer,
+        deleteCustomer,
+        getCustomerById,
+        orders,
+        addOrder,
+        editOrder,
+        deleteOrder,
+        updateDeliveryStatus,
+        addPayment,
+        getOrdersForCustomer,
+        items,
+        addItem,
+        editItem,
+        deleteItem,
+        adjustStock,
+        getLowStockItems,
+        expenses,
+        addExpense,
+        editExpense,
+        deleteExpense,
+        settings,
+        updateSettings,
         isLoaded,
       }}
     >

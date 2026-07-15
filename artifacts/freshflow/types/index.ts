@@ -1,25 +1,19 @@
-export interface Area {
-  id: string;
-  name: string;
-  createdAt: string;
-  isSub?: boolean;
-}
+export type LocationType = 'Area' | 'Road' | 'Street' | 'Galli' | 'Society' | 'Building' | 'Landmark' | 'Other';
 
-export interface Street {
+export interface Location {
   id: string;
-  areaId: string;
-  areaName: string;
+  parentLocationId: string | null;
   name: string;
+  type: LocationType;
+  sortOrder: number;
+  notes?: string;
+  gpsCoordinates?: string;
   createdAt: string;
-  isSub?: boolean;
 }
 
 export interface Customer {
   id: string;
-  streetId: string;
-  streetName: string;
-  areaId: string;
-  areaName: string;
+  locationId: string;
   name: string;
   phone: string;
   phone2: string;
