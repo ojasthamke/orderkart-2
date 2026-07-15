@@ -243,10 +243,11 @@ interface FormFieldProps {
   keyboardType?: 'default' | 'numeric' | 'phone-pad' | 'decimal-pad';
   multiline?: boolean;
   required?: boolean;
+  numberOfLines?: number;
 }
 
 export function FormField({
-  label, value, onChangeText, placeholder, keyboardType, multiline, required,
+  label, value, onChangeText, placeholder, keyboardType, multiline, required, numberOfLines,
 }: FormFieldProps) {
   const colors = useColors();
   return (
@@ -262,7 +263,7 @@ export function FormField({
             backgroundColor: colors.muted,
             borderColor: colors.border,
           },
-          multiline && { height: 80, textAlignVertical: 'top' },
+          multiline && { height: numberOfLines ? numberOfLines * 24 + 16 : 80, textAlignVertical: 'top' },
         ]}
         value={value}
         onChangeText={onChangeText}
@@ -270,6 +271,7 @@ export function FormField({
         placeholderTextColor={colors.mutedForeground}
         keyboardType={keyboardType}
         multiline={multiline}
+        numberOfLines={numberOfLines}
         returnKeyType={multiline ? undefined : 'next'}
       />
     </View>
