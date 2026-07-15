@@ -2,6 +2,7 @@ export interface Area {
   id: string;
   name: string;
   createdAt: string;
+  isSub?: boolean;
 }
 
 export interface Street {
@@ -10,6 +11,7 @@ export interface Street {
   areaName: string;
   name: string;
   createdAt: string;
+  isSub?: boolean;
 }
 
 export interface Customer {

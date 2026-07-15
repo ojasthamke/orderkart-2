@@ -16,14 +16,14 @@ import {
 interface DataContextType {
   // Areas
   areas: Area[];
-  addArea: (name: string) => void;
-  editArea: (id: string, name: string) => void;
+  addArea: (name: string, isSub?: boolean) => void;
+  editArea: (id: string, name: string, isSub?: boolean) => void;
   deleteArea: (id: string) => void;
 
   // Streets
   streets: Street[];
-  addStreet: (areaId: string, areaName: string, name: string) => void;
-  editStreet: (id: string, name: string) => void;
+  addStreet: (areaId: string, areaName: string, name: string, isSub?: boolean) => void;
+  editStreet: (id: string, name: string, isSub?: boolean) => void;
   deleteStreet: (id: string) => void;
   getStreetsForArea: (areaId: string) => Street[];
 
@@ -102,8 +102,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Areas
-  const addArea = useCallback((name: string) => {
-    const area: Area = { id: generateId(), name, createdAt: new Date().toISOString() };
+  const addArea = useCallback((name: string, isSub = false) => {
+    const area: Area = { id: generateId(), name, createdAt: new Date().toISOString(), isSub };
     setAreas(prev => {
       const next = [...prev, area];
       saveData(STORAGE_KEYS.AREAS, next);
@@ -111,9 +111,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const editArea = useCallback((id: string, name: string) => {
+  const editArea = useCallback((id: string, name: string, isSub?: boolean) => {
     setAreas(prev => {
-      const next = prev.map(a => (a.id === id ? { ...a, name } : a));
+      const next = prev.map(a => (a.id === id ? { ...a, name, isSub: isSub !== undefined ? isSub : a.isSub } : a));
       saveData(STORAGE_KEYS.AREAS, next);
       return next;
     });
@@ -148,8 +148,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Streets
-  const addStreet = useCallback((areaId: string, areaName: string, name: string) => {
-    const street: Street = { id: generateId(), areaId, areaName, name, createdAt: new Date().toISOString() };
+  const addStreet = useCallback((areaId: string, areaName: string, name: string, isSub = false) => {
+    const street: Street = { id: generateId(), areaId, areaName, name, createdAt: new Date().toISOString(), isSub };
     setStreets(prev => {
       const next = [...prev, street];
       saveData(STORAGE_KEYS.STREETS, next);
@@ -157,9 +157,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const editStreet = useCallback((id: string, name: string) => {
+  const editStreet = useCallback((id: string, name: string, isSub?: boolean) => {
     setStreets(prev => {
-      const next = prev.map(s => (s.id === id ? { ...s, name } : s));
+      const next = prev.map(s => (s.id === id ? { ...s, name, isSub: isSub !== undefined ? isSub : s.isSub } : s));
       saveData(STORAGE_KEYS.STREETS, next);
       return next;
     });

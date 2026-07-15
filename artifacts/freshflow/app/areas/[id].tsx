@@ -8,6 +8,7 @@ import {
   Modal,
   Platform,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -29,6 +30,7 @@ export default function AreaDetailScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [streetName, setStreetName] = useState('');
+  const [isSub, setIsSub] = useState(false);
 
   const area = areas.find(a => a.id === id);
   const areaName = area?.name || name || 'Area';
@@ -37,28 +39,34 @@ export default function AreaDetailScreen() {
     () =>
       streets
         .filter(s => s.areaId === id && s.name.toLowerCase().includes(search.toLowerCase()))
-        .sort((a, b) => a.name.localeCompare(b.name)),
+        .sort((a, b) => {
+          if (a.isSub && !b.isSub) return -1;
+          if (!a.isSub && b.isSub) return 1;
+          return a.name.localeCompare(b.name);
+        }),
     [streets, id, search],
   );
 
   function openAdd() {
     setEditingId(null);
     setStreetName('');
+    setIsSub(false);
     setModalVisible(true);
   }
 
   function openEdit(street: Street) {
     setEditingId(street.id);
     setStreetName(street.name);
+    setIsSub(street.isSub || false);
     setModalVisible(true);
   }
 
   function handleSave() {
     if (!streetName.trim()) return;
     if (editingId) {
-      editStreet(editingId, streetName.trim());
+      editStreet(editingId, streetName.trim(), isSub);
     } else {
-      addStreet(id!, areaName, streetName.trim());
+      addStreet(id!, areaName, streetName.trim(), isSub);
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setModalVisible(false);
@@ -110,7 +118,14 @@ export default function AreaDetailScreen() {
                 <Feather name="git-branch" size={18} color={colors.accentForeground} />
               </View>
               <View style={styles.streetBody}>
-                <Text style={[styles.streetName, { color: colors.foreground }]}>{item.name}</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={[styles.streetName, { color: colors.foreground }]}>{item.name}</Text>
+                  {item.isSub && (
+                    <View style={{ backgroundColor: colors.primary + '18', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                      <Text style={{ color: colors.primary, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>SUB</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={[styles.streetMeta, { color: colors.mutedForeground }]}>
                   {custCount} customer{custCount !== 1 ? 's' : ''}
                 </Text>
@@ -148,6 +163,17 @@ export default function AreaDetailScreen() {
           />
           <KeyboardAwareScrollView contentContainerStyle={styles.modalBody} keyboardShouldPersistTaps="handled">
             <FormField label="Street Name" value={streetName} onChangeText={setStreetName} placeholder="e.g. MG Road, Lane 4" required />
+            <View style={styles.toggleRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Is Sub Street?</Text>
+                <Text style={[styles.toggleSub, { color: colors.mutedForeground }]}>Show at the top of the list</Text>
+              </View>
+              <Switch
+                value={isSub}
+                onValueChange={setIsSub}
+                trackColor={{ true: colors.primary }}
+              />
+            </View>
             <PrimaryButton label={editingId ? 'Save Changes' : 'Add Street'} onPress={handleSave} disabled={!streetName.trim()} />
           </KeyboardAwareScrollView>
         </View>
@@ -178,4 +204,7 @@ const styles = StyleSheet.create({
   actionBtn: { padding: 6 },
   modal: { flex: 1 },
   modalBody: { padding: 16, gap: 16 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, gap: 12, marginBottom: 12 },
+  toggleLabel: { fontSize: 15, fontFamily: 'Inter_500Medium' },
+  toggleSub: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
 });

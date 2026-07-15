@@ -251,9 +251,10 @@ interface AreaCardProps {
   onPress: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  isSub?: boolean;
 }
 
-export function AreaCard({ name, streetCount, customerCount, onPress, onEdit, onDelete }: AreaCardProps) {
+export function AreaCard({ name, streetCount, customerCount, onPress, onEdit, onDelete, isSub }: AreaCardProps) {
   const colors = useColors();
   return (
     <TouchableOpacity
@@ -265,7 +266,14 @@ export function AreaCard({ name, streetCount, customerCount, onPress, onEdit, on
         <Feather name="map-pin" size={20} color={colors.primary} />
       </View>
       <View style={styles.cardBody}>
-        <Text style={[styles.cardName, { color: colors.foreground }]}>{name}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <Text style={[styles.cardName, { color: colors.foreground }]}>{name}</Text>
+          {isSub && (
+            <View style={{ backgroundColor: colors.primary + '18', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+              <Text style={{ color: colors.primary, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>SUB</Text>
+            </View>
+          )}
+        </View>
         <View style={styles.cardMeta}>
           <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
             {streetCount} streets · {customerCount} customers

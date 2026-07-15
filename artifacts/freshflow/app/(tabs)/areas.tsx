@@ -8,6 +8,7 @@ import {
   Modal,
   Platform,
   StyleSheet,
+  Switch,
   Text,
   TouchableOpacity,
   View,
@@ -28,31 +29,41 @@ export default function AreasScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [areaName, setAreaName] = useState('');
+  const [isSub, setIsSub] = useState(false);
 
   const filtered = useMemo(
     () =>
-      areas.filter(a => a.name.toLowerCase().includes(search.toLowerCase())).sort((a, b) => a.name.localeCompare(b.name)),
+      areas
+        .filter(a => a.name.toLowerCase().includes(search.toLowerCase()))
+        .sort((a, b) => {
+          if (a.isSub && !b.isSub) return -1;
+          if (!a.isSub && b.isSub) return 1;
+          return a.name.localeCompare(b.name);
+        }),
     [areas, search],
   );
 
   function openAdd() {
     setEditingId(null);
     setAreaName('');
+    setIsSub(false);
     setModalVisible(true);
   }
 
   function openEdit(id: string, name: string) {
     setEditingId(id);
     setAreaName(name);
+    const area = areas.find(a => a.id === id);
+    setIsSub(area?.isSub || false);
     setModalVisible(true);
   }
 
   function handleSave() {
     if (!areaName.trim()) return;
     if (editingId) {
-      editArea(editingId, areaName.trim());
+      editArea(editingId, areaName.trim(), isSub);
     } else {
-      addArea(areaName.trim());
+      addArea(areaName.trim(), isSub);
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setModalVisible(false);
@@ -100,6 +111,7 @@ export default function AreasScreen() {
         renderItem={({ item }) => (
           <AreaCard
             name={item.name}
+            isSub={item.isSub}
             streetCount={streets.filter(s => s.areaId === item.id).length}
             customerCount={customers.filter(c => c.areaId === item.id).length}
             onPress={() => router.push({ pathname: '/areas/[id]', params: { id: item.id, name: item.name } })}
@@ -136,6 +148,17 @@ export default function AreasScreen() {
               placeholder="e.g. Sector 12, Downtown"
               required
             />
+            <View style={styles.toggleRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.toggleLabel, { color: colors.foreground }]}>Is Sub Area?</Text>
+                <Text style={[styles.toggleSub, { color: colors.mutedForeground }]}>Show at the top of the list</Text>
+              </View>
+              <Switch
+                value={isSub}
+                onValueChange={setIsSub}
+                trackColor={{ true: colors.primary }}
+              />
+            </View>
             <PrimaryButton label={editingId ? 'Save Changes' : 'Add Area'} onPress={handleSave} disabled={!areaName.trim()} />
           </KeyboardAwareScrollView>
         </View>
@@ -152,4 +175,7 @@ const styles = StyleSheet.create({
   list: { paddingTop: 8, flexGrow: 1 },
   modal: { flex: 1 },
   modalBody: { padding: 16, gap: 16 },
+  toggleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, gap: 12, marginBottom: 12 },
+  toggleLabel: { fontSize: 15, fontFamily: 'Inter_500Medium' },
+  toggleSub: { fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 },
 });
